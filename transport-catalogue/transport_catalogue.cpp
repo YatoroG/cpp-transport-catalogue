@@ -2,13 +2,13 @@
 
 namespace transport_catalog {
 
-void TransportCatalogue::AddStop(std::string name, double latitude, double longitude) {
+void TransportCatalogue::AddStop(const std::string& name, double latitude, double longitude) {
 	Stop new_stop = Stop{ name, {latitude, longitude } };
 	stops_.push_back(std::move(new_stop));
 	stopname_to_stop_[stops_.back().name] = &stops_.back();
 }
 
-void TransportCatalogue::AddBus(std::string bus_num, std::vector<Stop*> stops) {
+void TransportCatalogue::AddBus(const std::string& bus_num, const std::vector<Stop*>& stops) {
 	Bus new_bus = Bus{ bus_num, stops };
 	Bus& added_bus = buses_.emplace_back(std::move(new_bus));
 
@@ -25,17 +25,17 @@ void TransportCatalogue::AddBus(std::string bus_num, std::vector<Stop*> stops) {
 }
 
 Stop* TransportCatalogue::GetStop(std::string_view stop_name) const {
-	if (stopname_to_stop_.count(stop_name) == 0) {
-		return nullptr;
+	if (auto founded_stop = stopname_to_stop_.find(stop_name); founded_stop != stopname_to_stop_.end()) {
+		return founded_stop->second;
 	}
-	return stopname_to_stop_.at(stop_name);
+	return nullptr;
 }
 
 Bus* TransportCatalogue::GetBus(std::string_view bus_num) const {
-	if (busname_to_bus_.count(bus_num) == 0) {
-		return nullptr;
+	if (auto founded_bus = busname_to_bus_.find(bus_num); founded_bus != busname_to_bus_.end()) {
+		return founded_bus->second;
 	}
-	return busname_to_bus_.at(bus_num);
+	return nullptr;
 }
 
 size_t TransportCatalogue::GetUniqueStops(const Bus& bus) const {
@@ -54,12 +54,31 @@ double TransportCatalogue::CountRouteDistance(const Bus& bus) const {
 	return route_distance;
 }
 
-std::set<std::string_view> TransportCatalogue::GetBusesForStop(Stop* stop) const {
-	if (stop_buses_.count(stop) == 0) {
-		return {};
+std::optional<statistics::BusInfo> TransportCatalogue::GetBusInfo(std::string_view bus_num) const {
+	Bus* founded_bus = GetBus(bus_num);
+	if (!founded_bus) {
+		return std::nullopt;
+	}
+	statistics::BusInfo bus_info{ founded_bus->bus_num, GetStops(*founded_bus),
+		GetUniqueStops(*founded_bus), CountRouteDistance(*founded_bus) };
+	return bus_info;
+}
+
+std::optional<statistics::StopInfo> TransportCatalogue::GetStopInfo(std::string_view stop_name) const {
+	Stop* founded_stop = GetStop(stop_name);
+
+	if (!founded_stop) {
+		return std::nullopt;
 	}
 
-	return stop_buses_.at(stop);
+	statistics::StopInfo stop_info{ founded_stop->name, {} };
+
+	if (stop_buses_.count(founded_stop) != 0) {
+		const std::set<std::string_view>& stop_buses = stop_buses_.at(founded_stop);
+		stop_info.buses = stop_buses;
+	}
+
+	return stop_info;
 }
 
 }

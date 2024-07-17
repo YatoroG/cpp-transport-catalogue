@@ -1,11 +1,26 @@
 #pragma once
 #include "geo.h"
 #include <deque>
+#include <optional>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <set>
+
+namespace statistics {
+    struct BusInfo {
+        std::string_view bus_num;
+        size_t stops_num;
+        size_t unique_stops_num;
+        double route_length;
+    };
+
+    struct StopInfo {
+        std::string_view stop_name;
+        std::set<std::string_view> buses;
+    };
+}
 
 namespace transport_catalog {
 
@@ -29,14 +44,12 @@ struct DistanceHasher {
 class TransportCatalogue {
 public:
     TransportCatalogue() = default;
-    void AddStop(std::string name, double latitude, double longitude);
-    void AddBus(std::string bus_num, std::vector<Stop*> stops);
+    void AddStop(const std::string& name, double latitude, double longitude);
+    void AddBus(const std::string& bus_num, const std::vector<Stop*>& stops);
     Stop* GetStop(std::string_view stop_name) const;
     Bus* GetBus(std::string_view bus_num) const;
-    size_t GetUniqueStops(const Bus& bus) const;
-    size_t GetStops(const Bus& bus) const;
-    double CountRouteDistance(const Bus& bus) const;
-    std::set<std::string_view> GetBusesForStop(Stop* stop) const;
+    std::optional<statistics::BusInfo> GetBusInfo(std::string_view bus_num) const;
+    std::optional<statistics::StopInfo> GetStopInfo(std::string_view stop_name) const;
 
 private:
     std::unordered_map<Stop*, std::set<std::string_view>> stop_buses_;
@@ -45,6 +58,10 @@ private:
     std::unordered_map<std::string_view, Stop*> stopname_to_stop_;
     std::deque<Bus> buses_;
     std::deque<Stop> stops_;
+
+    size_t GetUniqueStops(const Bus& bus) const;
+    size_t GetStops(const Bus& bus) const;
+    double CountRouteDistance(const Bus& bus) const;
 };
 
 }

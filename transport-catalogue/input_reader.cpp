@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <iostream>
 #include <iterator>
 
 namespace input_reader {
@@ -121,6 +122,16 @@ void InputReader::ApplyCommands([[maybe_unused]] transport_catalog::TransportCat
             }
             catalogue.AddBus(command_line.id, stops);
         }
+    }
+}
+
+void InputReader::ReadInput(std::istream& input) {
+    int base_request_count;
+    input >> base_request_count >> std::ws;
+    for (int i = 0; i < base_request_count; ++i) {
+        std::string line;
+        std::getline(input, line);
+        ParseLine(line);
     }
 }
 
