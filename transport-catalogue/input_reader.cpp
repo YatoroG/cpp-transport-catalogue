@@ -98,6 +98,25 @@ CommandDescription ParseCommandDescription(std::string_view line) {
             std::string(line.substr(colon_pos + 1)) };
 }
 
+std::pair<std::string_view, int> ParseDistance(std::string_view str) {
+    int pos = str.find_first_not_of(' ');
+    int m_pos = str.find_first_of('m');
+    int distance = std::stoi(std::string(str.substr(pos, m_pos)));
+    int to_pos = str.find("to");
+    int stop_pos = str.find_first_not_of(' ', to_pos + 2);
+    std::string_view stop_name = str.substr(stop_pos);
+    return { stop_name, distance };
+}
+
+std::vector<std::pair<std::string_view, int>> ParseStopsDistance(std::string_view str) {
+    std::vector<std::string_view> distances = Split(str, ',');
+    std::vector<std::pair<std::string_view, int>> distances_to_stops;
+    for (auto distance : distances) {
+        distances_to_stops.push_back(ParseDistance(distance));
+    }
+    return distances_to_stops;
+}
+
 void InputReader::ParseLine(std::string_view line) {
     auto command_description = ParseCommandDescription(line);
     if (command_description) {
@@ -110,6 +129,21 @@ void InputReader::ApplyCommands([[maybe_unused]] transport_catalog::TransportCat
         if (command_line.command == "Stop") {
             geo::Coordinates stop_coord = ParseCoordinates(command_line.description);
             catalogue.AddStop(command_line.id, stop_coord.lat, stop_coord.lng);
+        }
+    }
+
+    for (const auto& command_line : commands_) {
+        if (command_line.command == "Stop") {
+            int first_comma = command_line.description.find_first_of(',');
+            int second_comma = command_line.description.find_first_of(',', first_comma + 1);
+            if (second_comma != std::string::npos) {
+                transport_catalog::Stop* stop = catalogue.GetStop(command_line.id);
+                std::string distances = command_line.description.substr(second_comma + 1);
+                std::vector<std::pair<std::string_view, int>> distance_to_stops = ParseStopsDistance(distances);
+                for (const auto& distance : distance_to_stops) {
+                    catalogue.AddDistanceBetweenStops(stop, catalogue.GetStop(distance.first), distance.second);
+                }
+            }
         }
     }
 

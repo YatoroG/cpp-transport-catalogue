@@ -37,7 +37,7 @@ void PrintBusInfo(std::optional<BusInfo> bus_info, std::string_view bus_num, std
     output << bus_info.value().bus_num << ": " 
         << bus_info.value().stops_num << " stops on route, "
         << bus_info.value().unique_stops_num << " unique stops, "
-        << bus_info.value().route_length << std::setprecision(6) << " route length" << std::endl;
+        << bus_info.value().route_length  << " route length, " << std::setprecision(6) << bus_info.value().curvature << " curvature" << std::endl;
 }
 
 void PrintStopInfo(std::optional<StopInfo> stop_info, std::string_view stop_name, std::ostream& output) {
