@@ -2,19 +2,16 @@
 #include <fstream>
 #include <string>
 
-#include "input_reader.h"
-#include "stat_reader.h"
+#include "map_renderer.h"
+#include "json_reader.h"
+#include "request_handler.h"
 
 using namespace std;
 
 int main() {
-    transport_catalog::TransportCatalogue catalogue;
-
-    {
-        input_reader::InputReader reader;
-        reader.ReadInput(cin);
-        reader.ApplyCommands(catalogue);
-    }
-
-    statistics::ReadInput(cin, catalogue, cout);
+    TransportCatalogue catalogue;
+    RequestHandler req_handler(catalogue);
+    json_reader::JSON_Reader reader;    
+    MapRenderer map_renderer(req_handler);
+    reader.ReadRequests(cin, catalogue, req_handler, map_renderer);
 }

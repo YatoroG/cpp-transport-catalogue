@@ -1,0 +1,134 @@
+#pragma once
+#include "domain.h"
+#include "geo.h"
+#include "request_handler.h"
+#include "svg.h"
+#include <algorithm>
+#include <array>
+#include <cstdlib>
+#include <deque>
+#include <iostream>
+#include <optional>
+#include <vector>
+
+inline const double EPSILON = 1e-6;
+bool IsZero(double value);
+
+class SphereProjector {
+public:
+    // points_begin и points_end задают начало и конец интервала элементов geo::Coordinates
+    template <typename PointInputIt>
+    SphereProjector(PointInputIt points_begin, PointInputIt points_end,
+        double max_width, double max_height, double padding)
+        : padding_(padding) //
+    {
+        // Если точки поверхности сферы не заданы, вычислять нечего
+        if (points_begin == points_end) {
+            return;
+        }
+
+        // Находим точки с минимальной и максимальной долготой
+        const auto [left_it, right_it] = std::minmax_element(
+            points_begin, points_end,
+            [](auto lhs, auto rhs) { return lhs.lng < rhs.lng; });
+        min_lon_ = left_it->lng;
+        const double max_lon = right_it->lng;
+
+        // Находим точки с минимальной и максимальной широтой
+        const auto [bottom_it, top_it] = std::minmax_element(
+            points_begin, points_end,
+            [](auto lhs, auto rhs) { return lhs.lat < rhs.lat; });
+        const double min_lat = bottom_it->lat;
+        max_lat_ = top_it->lat;
+
+        // Вычисляем коэффициент масштабирования вдоль координаты x
+        std::optional<double> width_zoom;
+        if (!IsZero(max_lon - min_lon_)) {
+            width_zoom = (max_width - 2 * padding) / (max_lon - min_lon_);
+        }
+
+        // Вычисляем коэффициент масштабирования вдоль координаты y
+        std::optional<double> height_zoom;
+        if (!IsZero(max_lat_ - min_lat)) {
+            height_zoom = (max_height - 2 * padding) / (max_lat_ - min_lat);
+        }
+
+        if (width_zoom && height_zoom) {
+            // Коэффициенты масштабирования по ширине и высоте ненулевые,
+            // берём минимальный из них
+            zoom_coeff_ = std::min(*width_zoom, *height_zoom);
+        }
+        else if (width_zoom) {
+            // Коэффициент масштабирования по ширине ненулевой, используем его
+            zoom_coeff_ = *width_zoom;
+        }
+        else if (height_zoom) {
+            // Коэффициент масштабирования по высоте ненулевой, используем его
+            zoom_coeff_ = *height_zoom;
+        }
+    }
+
+    // Проецирует широту и долготу в координаты внутри SVG-изображения
+    svg::Point operator()(geo::Coordinates coords) const {
+        return {
+            (coords.lng - min_lon_) * zoom_coeff_ + padding_,
+            (max_lat_ - coords.lat) * zoom_coeff_ + padding_
+        };
+    }
+
+private:
+    double padding_;
+    double min_lon_ = 0;
+    double max_lat_ = 0;
+    double zoom_coeff_ = 0;
+};
+
+struct MapProps {
+	double width = 600;
+    double height = 400;
+    double padding = 50;
+    double line_width = 14;
+    double stop_radius = 5;
+	int bus_label_font_size = 20;
+    std::array<double, 2> bus_label_offset{ 7, 15 };
+	int stop_label_font_size = 20;
+    std::array<double, 2> stop_label_offset{ 7, -3 };
+	svg::Color underlayer_color = svg::Rgba(255, 255, 255, 0.85);
+    double underlayer_width = 3;
+    std::vector<svg::Color> color_palette = { "green", svg::Rgb(255, 160, 0), "red" };
+};
+
+class MapRenderer
+{
+public:
+    MapRenderer() = default;
+
+    MapRenderer(RequestHandler& handler)
+    : handler_(handler) {
+    }
+
+    void DrawMap(std::ostringstream& out);
+    void DrawLines(SphereProjector& proj);
+    void DrawBusNames(SphereProjector& proj);
+    void DrawStops(SphereProjector& proj);
+    void DrawStopNames(SphereProjector& proj);
+
+    MapRenderer& SetWidth(double width);
+    MapRenderer& SetHeight(double height);
+    MapRenderer& SetPadding(double padding);
+    MapRenderer& SetLineWidth(double line_width);
+    MapRenderer& SetStopRadius(double stop_radius);
+    MapRenderer& SetBusLabelFontSize(int label_size);
+    MapRenderer& SetBusLabelOffset(std::array<double, 2> offset);
+    MapRenderer& SetStopLabelFontSize(int label_size);
+    MapRenderer& SetStopLabelOffset(std::array<double, 2> offset);
+    MapRenderer& SetUnderlayerColor(svg::Color color);
+    MapRenderer& SetUnderlayerWidth(double width);
+    MapRenderer& SetColorPalette(std::vector<svg::Color> color_palette);
+
+private:
+    svg::Document document_;
+    std::vector<geo::Coordinates> coordinates_;
+    MapProps properties_;
+    RequestHandler& handler_;
+};
