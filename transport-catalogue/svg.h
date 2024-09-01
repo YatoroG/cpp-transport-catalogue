@@ -309,12 +309,6 @@ namespace svg {
 
     class ObjectContainer {
     public:
-        /*
-         Метод Add добавляет в svg-документ любой объект-наследник svg::Object.
-         Пример использования:
-         Document doc;
-         doc.Add(Circle().SetCenter({20, 30}).SetRadius(15));
-        */
         template <typename Obj>
         void Add(Obj obj) {
             objects_.emplace_back(std::make_unique<Obj>(std::move(obj)));
@@ -336,11 +330,7 @@ namespace svg {
 
     class Document : public ObjectContainer {
     public:
-
-        // Добавляет в svg-документ объект-наследник svg::Object
         void AddPtr(std::unique_ptr<Object>&& obj);
-
-        // Выводит в ostream svg-представление документа
         void Render(std::ostream& out) const;
     };
 

@@ -31,7 +31,9 @@ std::optional<statistics::StopInfo> RequestHandler::GetStopInfo(std::string_view
 const std::set<Bus> RequestHandler::GetAllBuses() const {
 	std::set<Bus> buses;
 	for (const auto& bus : db_.GetBuses()) {
-		buses.insert(bus);
+		if (bus.stops.size() != 0) {
+			buses.insert(bus);
+		}
 	}
 	return buses;
 }
