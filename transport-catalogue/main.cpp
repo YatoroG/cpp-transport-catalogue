@@ -11,7 +11,8 @@ using namespace std;
 int main() {
     TransportCatalogue catalogue;
     RequestHandler req_handler(catalogue);
-    json_reader::JSON_Reader reader;    
+    json_reader::JSON_Reader reader;
     MapRenderer map_renderer(req_handler);
-    reader.ReadRequests(cin, catalogue, req_handler, map_renderer);
+    TransportRouter router(catalogue, req_handler);
+    reader.ReadRequests(cin, catalogue, req_handler, map_renderer, router);
 }

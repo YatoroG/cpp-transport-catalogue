@@ -1,7 +1,7 @@
 #include "json_reader.h"
 namespace json_reader {
 
-void JSON_Reader::ReadRequests(std::istream& input, TransportCatalogue& catalogue, RequestHandler& handler, MapRenderer& map_renderer) {
+void JSON_Reader::ReadRequests(std::istream& input, TransportCatalogue& catalogue, RequestHandler& handler, MapRenderer& map_renderer, TransportRouter& router) {
 	const Document& doc = Load(input);
 	const Node& doc_root = doc.GetRoot();
 
@@ -10,9 +10,16 @@ void JSON_Reader::ReadRequests(std::istream& input, TransportCatalogue& catalogu
 	}
 
 	auto requests_map = doc_root.AsDict();
+	ReadPropRouterRequests(requests_map.at("routing_settings"), router);
 	ReadBaseRequests(requests_map.at("base_requests"), catalogue);
 	ReadPropMapRequests(requests_map.at("render_settings"), map_renderer);	
-	ReadStatRequests(requests_map.at("stat_requests"), handler, map_renderer);
+	ReadStatRequests(requests_map.at("stat_requests"), handler, map_renderer, router);
+}
+
+void JSON_Reader::ReadPropRouterRequests(Node& root_node, TransportRouter& router) {
+	const auto& node_map = root_node.AsDict();
+	router.SetBusVelocity(node_map.at("bus_velocity").AsDouble())
+			.SetBusWaitTime(node_map.at("bus_wait_time").AsInt());
 }
 
 void JSON_Reader::ReadBaseRequests(Node& root_node, TransportCatalogue& catalogue) {
@@ -62,7 +69,7 @@ void JSON_Reader::ReadBusRequests(const Array& node_array, TransportCatalogue& c
 	}
 }
 
-void JSON_Reader::ReadStatRequests(Node& root_node, RequestHandler& handler, MapRenderer& map_renderer) {
+void JSON_Reader::ReadStatRequests(Node& root_node, RequestHandler& handler, MapRenderer& map_renderer, TransportRouter& router) {
 	std::ostringstream output;
 	Array requests;
 	const auto& node_array = root_node.AsArray();
@@ -79,6 +86,11 @@ void JSON_Reader::ReadStatRequests(Node& root_node, RequestHandler& handler, Map
 		else if (node_info.at("type") == "Map") {
 			map_renderer.DrawMap(output);
 			requests.push_back(PrintMapStatRequestsResult(node_info.at("id").AsInt(), output));
+		}
+		else if (node_info.at("type") == "Route") {
+			router.MakeGraph();
+			std::optional<graph::Router<double>::RouteInfo> route_info = router.GetRoute(node_info.at("from").AsString(), node_info.at("to").AsString());
+			requests.push_back(PrintRouteStatRequestsResult(node_info.at("id").AsInt(), router, route_info));
 		}
 	}
 	Document doc{ requests };
@@ -192,6 +204,50 @@ Node JSON_Reader::PrintMapStatRequestsResult(int request_id, std::ostringstream&
 						.EndDict()
 					.Build();
 	return svg_str;
+}
+
+Node JSON_Reader::PrintRouteStatRequestsResult(int request_id, TransportRouter& router, std::optional<graph::Router<double>::RouteInfo> route_info) {
+	Node route_node;
+
+	if (!route_info) {
+		route_node = Builder{}
+						.StartDict()
+							.Key("request_id").Value(request_id)
+							.Key("error_message").Value("not found")
+						.EndDict()
+					.Build();
+	}
+	else {
+		Array items_array;
+		for (const auto& item : route_info.value().edges) {				
+			Dict edges_info;
+			const auto& item_info = router.GetEdgeInfo(item);
+			if (std::holds_alternative<BusEdge>(item_info)) {
+				BusEdge bus_edge = std::get<BusEdge>(item_info);
+				edges_info["bus"] = bus_edge.bus_name;
+				edges_info["span_count"] = bus_edge.span_count;
+				edges_info["time"] = bus_edge.ride_time;
+				edges_info["type"] = "Bus";
+			}
+			else if (std::holds_alternative<WaitEdge>(item_info)) {
+				WaitEdge wait_edge = std::get<WaitEdge>(item_info);
+				edges_info["stop_name"] = wait_edge.stop_name;
+				edges_info["time"] = wait_edge.wait_time;
+				edges_info["type"] = "Wait";
+			}
+			items_array.push_back(edges_info);
+		}
+
+		route_node = Builder{}
+						.StartDict()
+							.Key("request_id").Value(request_id)
+							.Key("total_time").Value(route_info.value().weight)
+							.Key("items").Value(items_array)
+						.EndDict()
+					.Build();
+	}
+
+	return route_node;
 }
 
 }

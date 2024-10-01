@@ -26,7 +26,7 @@ namespace  transport_catalogue
     using namespace domain;
 
     struct DistanceHasher {
-        size_t operator()(const std::pair<Stop*, Stop*> stop_pair) const {
+        size_t operator()(const std::pair< Stop*, Stop*> stop_pair) const {
             std::hash<std::string> hasher;
             return hasher(stop_pair.first->name) + hasher(stop_pair.second->name) * 31;
         }
@@ -43,9 +43,11 @@ namespace  transport_catalogue
         const std::set<std::string_view>* GetStopBuses(Stop* stop) const;
         const std::deque<Bus>& GetBuses() const;
         const std::deque<Stop>& GetStops() const;
+        std::deque<const Stop*> GetStopsPointers() const;
 
         int GetUniqueStops(const Bus& bus) const;
         int GetStops(const Bus& bus) const;
+        int CountDistanceBetweenStops( Stop* from,  Stop* to) const;
         int CountRouteDistance(const Bus& bus) const;
         double CountRouteCurvature(const Bus& bus, int real_distance) const;
 

@@ -62,6 +62,15 @@ namespace  transport_catalogue
 		return stops_;
 	}
 
+	std::deque<const Stop*> TransportCatalogue::GetStopsPointers() const
+	{
+		std::deque<const Stop*> stops_pointers;
+		for (const auto& [name, stop] : stopname_to_stop_) {
+			stops_pointers.push_back(stop);
+		}
+		return stops_pointers;
+	}
+
 	int TransportCatalogue::GetUniqueStops(const Bus& bus) const {
 		return (int)std::unordered_set<Stop*>(bus.stops.begin(), bus.stops.end()).size();
 	}
@@ -70,15 +79,21 @@ namespace  transport_catalogue
 		return (int)bus.stops.size();
 	}
 
+	int TransportCatalogue::CountDistanceBetweenStops( Stop* from, Stop* to) const {
+		int distance = 0;
+		if (road_distance_.count({ from, to }) == 0) {
+			distance += road_distance_.at({ to, from });
+		}
+		else {
+			distance += road_distance_.at({ from, to });
+		}
+		return distance;
+	}
+
 	int TransportCatalogue::CountRouteDistance(const Bus& bus) const {
 		int route_distance = 0;
 		for (size_t i = 0; i != bus.stops.size() - 1; ++i) {
-			if (road_distance_.count({ bus.stops[i], bus.stops[i + 1] }) == 0) {
-				route_distance += road_distance_.at({ bus.stops[i + 1], bus.stops[i] });
-			}
-			else {
-				route_distance += road_distance_.at({ bus.stops[i], bus.stops[i + 1] });
-			}
+			route_distance += CountDistanceBetweenStops(bus.stops[i], bus.stops[i+1]);
 		}
 
 		return route_distance;
