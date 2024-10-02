@@ -88,9 +88,8 @@ void JSON_Reader::ReadStatRequests(Node& root_node, RequestHandler& handler, Map
 			requests.push_back(PrintMapStatRequestsResult(node_info.at("id").AsInt(), output));
 		}
 		else if (node_info.at("type") == "Route") {
-			router.MakeGraph();
-			std::optional<graph::Router<double>::RouteInfo> route_info = router.GetRoute(node_info.at("from").AsString(), node_info.at("to").AsString());
-			requests.push_back(PrintRouteStatRequestsResult(node_info.at("id").AsInt(), router, route_info));
+			std::optional<RouteAndEdgesInfo> route_info = router.GetRoute(node_info.at("from").AsString(), node_info.at("to").AsString());
+			requests.push_back(PrintRouteStatRequestsResult(node_info.at("id").AsInt(), route_info));
 		}
 	}
 	Document doc{ requests };
@@ -206,7 +205,7 @@ Node JSON_Reader::PrintMapStatRequestsResult(int request_id, std::ostringstream&
 	return svg_str;
 }
 
-Node JSON_Reader::PrintRouteStatRequestsResult(int request_id, TransportRouter& router, std::optional<graph::Router<double>::RouteInfo> route_info) {
+Node JSON_Reader::PrintRouteStatRequestsResult(int request_id, std::optional<RouteAndEdgesInfo> route_info) {
 	Node route_node;
 
 	if (!route_info) {
@@ -221,16 +220,15 @@ Node JSON_Reader::PrintRouteStatRequestsResult(int request_id, TransportRouter& 
 		Array items_array;
 		for (const auto& item : route_info.value().edges) {				
 			Dict edges_info;
-			const auto& item_info = router.GetEdgeInfo(item);
-			if (std::holds_alternative<BusEdge>(item_info)) {
-				BusEdge bus_edge = std::get<BusEdge>(item_info);
+			if (std::holds_alternative<BusEdge>(item)) {
+				BusEdge bus_edge = std::get<BusEdge>(item);
 				edges_info["bus"] = bus_edge.bus_name;
 				edges_info["span_count"] = bus_edge.span_count;
 				edges_info["time"] = bus_edge.ride_time;
 				edges_info["type"] = "Bus";
 			}
-			else if (std::holds_alternative<WaitEdge>(item_info)) {
-				WaitEdge wait_edge = std::get<WaitEdge>(item_info);
+			else if (std::holds_alternative<WaitEdge>(item)) {
+				WaitEdge wait_edge = std::get<WaitEdge>(item);
 				edges_info["stop_name"] = wait_edge.stop_name;
 				edges_info["time"] = wait_edge.wait_time;
 				edges_info["type"] = "Wait";
@@ -241,7 +239,7 @@ Node JSON_Reader::PrintRouteStatRequestsResult(int request_id, TransportRouter& 
 		route_node = Builder{}
 						.StartDict()
 							.Key("request_id").Value(request_id)
-							.Key("total_time").Value(route_info.value().weight)
+							.Key("total_time").Value(route_info.value().time)
 							.Key("items").Value(items_array)
 						.EndDict()
 					.Build();

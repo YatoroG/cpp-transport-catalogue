@@ -25,22 +25,26 @@ struct BusEdge {
 	double ride_time;
 };
 
+struct RouteAndEdgesInfo {
+	double time;
+	std::vector<std::variant<BusEdge, WaitEdge>> edges;
+};
+
 class TransportRouter {
 public:
 	TransportRouter() = default;
 
-	TransportRouter(TransportCatalogue& catalogue, RequestHandler& handler)
-		: catalogue_(catalogue), handler_(handler) {}
+	TransportRouter(TransportCatalogue& catalogue)
+		: catalogue_(catalogue) {}
 
 	TransportRouter& SetBusWaitTime(int time);
 	TransportRouter& SetBusVelocity(double velocity);
-	void MakeGraph();
-	std::optional<graph::Router<double>::RouteInfo> GetRoute(std::string_view from, std::string_view to);
-	std::variant<BusEdge, WaitEdge> GetEdgeInfo(graph::EdgeId edge_id);
+
+	std::optional<RouteAndEdgesInfo> GetRoute(std::string_view from, std::string_view to);
+
 
 private:	
 	const TransportCatalogue& catalogue_;
-	RequestHandler& handler_;
 	RouterProps properties_;
 	std::unique_ptr<graph::DirectedWeightedGraph<double>> graph_;
 	std::unique_ptr<graph::Router<double>> router_;
@@ -48,6 +52,9 @@ private:
 	std::unordered_map<graph::EdgeId, WaitEdge> wait_edges_;
 	std::unordered_map<graph::EdgeId, BusEdge> bus_edges_;
 	
+	void MakeGraph();
+	std::variant<BusEdge, WaitEdge> GetEdgeInfo(graph::EdgeId edge_id);
+
 	template <typename Iter>
 	void AddBusToGraph(Iter begin, Iter end, std::string bus_name) {
 		for (auto f_iter = begin; f_iter != end; ++f_iter) {

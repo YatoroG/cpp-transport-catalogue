@@ -23,7 +23,7 @@ void TransportRouter::MakeGraph() {
 		stops_edges_[stop] = edge;
 		wait_edges_[edge_id] = WaitEdge{ stop->name, properties_.bus_wait_time * 1.0};
 	}
-	const auto buses = handler_.GetAllBuses();
+	const auto buses = catalogue_.GetBuses();
 	for (const auto& bus : buses) {
 		AddBusToGraph(bus.stops.begin(), bus.stops.end(), bus.bus_num);
 		if (!bus.is_roundtrip) {
@@ -34,9 +34,21 @@ void TransportRouter::MakeGraph() {
 	router_ = std::make_unique<graph::Router<double>>(*graph_);
 }
 
-std::optional<graph::Router<double>::RouteInfo> TransportRouter::GetRoute(std::string_view from, std::string_view to) {
-	return router_->BuildRoute(stops_edges_.at(catalogue_.GetStop(from)).from, 
-								stops_edges_.at(catalogue_.GetStop(to)).from);
+std::optional<RouteAndEdgesInfo> TransportRouter::GetRoute(std::string_view from, std::string_view to) {
+	MakeGraph();
+	std::vector<std::variant<BusEdge, WaitEdge>> edges;
+	std::optional<graph::Router<double>::RouteInfo> route = router_->BuildRoute(stops_edges_.at(catalogue_.GetStop(from)).from, stops_edges_.at(catalogue_.GetStop(to)).from);
+
+	if (!route) {
+		return std::nullopt;
+	}
+
+	for (const auto& item : route.value().edges) {
+		const auto& item_info = GetEdgeInfo(item);
+		edges.push_back(item_info);
+	}
+
+	return RouteAndEdgesInfo{ route.value().weight, edges };
 }
 
 std::variant<BusEdge, WaitEdge> TransportRouter::GetEdgeInfo(graph::EdgeId edge_id) {

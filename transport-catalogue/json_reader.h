@@ -27,7 +27,7 @@ public:
 	Node PrintBusStatRequestsResult(int request_id, std::optional<statistics::BusInfo> bus_info);
 	Node PrintStopStatRequestsResult(int request_id, std::optional<statistics::StopInfo> stop_info);
 	Node PrintMapStatRequestsResult(int request_id, std::ostringstream& output);
-	Node PrintRouteStatRequestsResult(int request_id, TransportRouter& router, std::optional<graph::Router<double>::RouteInfo> route_info);
+	Node PrintRouteStatRequestsResult(int request_id, std::optional<RouteAndEdgesInfo> route_info);
 	svg::Color GetColorFromNode(json::Node node) const;
 
 };
