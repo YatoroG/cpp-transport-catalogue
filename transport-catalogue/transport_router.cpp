@@ -1,12 +1,12 @@
 #include "transport_router.h"
 
 TransportRouter& TransportRouter::SetBusWaitTime(int time) {
-	properties_.bus_wait_time = std::move(time);
+	properties_.bus_wait_time = time;
 	return *this;
 }
 
 TransportRouter& TransportRouter::SetBusVelocity(double velocity) {
-	properties_.bus_velocity = std::move(velocity);
+	properties_.bus_velocity = velocity;
 	return *this;
 }
 
